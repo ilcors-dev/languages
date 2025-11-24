@@ -4,11 +4,12 @@ use crate::parser::types::{ParsingAction, TraceRow};
 use std::collections::VecDeque;
 
 use crate::{
-    model::types::{Symbol, Terminal},
-    parser::{
+    analyzer,
+    model::{
         grammar::Grammar,
-        types::{ParseResult, ParseStep, ParsingTable},
+        types::{Symbol, Terminal},
     },
+    parser::types::{ParseResult, ParseStep, ParsingTable},
 };
 
 pub struct LL1Parser<'a> {
@@ -18,12 +19,12 @@ pub struct LL1Parser<'a> {
 
 impl<'a> LL1Parser<'a> {
     pub fn new(grammar: &'a Grammar) -> Option<Self> {
-        if !grammar.is_ll1() {
+        if !analyzer::ll1::is_ll1(grammar) {
             println!("The provided grammar is not LL(1) parseable!");
             return None;
         }
 
-        let parsing_table = match grammar.build_parsing_table() {
+        let parsing_table = match analyzer::ll1::build_parsing_table(grammar) {
             Some(t) => t,
             _ => {
                 println!("Could not build parsing table for the grammar");

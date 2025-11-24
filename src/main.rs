@@ -1,6 +1,6 @@
 use crate::{
-    model::types::Terminal,
-    parser::{grammar::Grammar, ll1::LL1Parser},
+    model::{grammar::Grammar, types::Terminal},
+    parser::ll1::LL1Parser,
 };
 
 mod analyzer;
@@ -15,15 +15,13 @@ fn main() {
 
     println!("{}", grammar.to_vertical_table());
 
-    println!("{}", grammar.to_first_set_table());
+    println!("{}", analyzer::ll1::to_first_set_table(&grammar));
 
-    println!("{}", grammar.to_follow_set_table());
+    println!("{}", analyzer::ll1::to_follow_set_table(&grammar));
 
     println!(
         "{}",
-        grammar
-            .to_parsing_table()
-            .expect("Expected table, nothing found.")
+        analyzer::ll1::to_parsing_table(&grammar).expect("Expected table, nothing found.")
     );
 
     let ll1_parser = LL1Parser::new(&grammar).unwrap();
@@ -39,3 +37,4 @@ fn main() {
     println!("String {:?} parseable: {}", test_str, result);
     println!("{}", LL1Parser::trace_as_table(&trace));
 }
+
