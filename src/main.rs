@@ -27,10 +27,10 @@ fn main() {
     let ll1_parser = LL1Parser::new(&grammar).unwrap();
 
     let test_str = &[
-        Terminal::AChar,
-        Terminal::BChar,
-        Terminal::BChar,
-        Terminal::BChar,
+        Terminal::Char('a'),
+        Terminal::Char('b'),
+        Terminal::Char('b'),
+        Terminal::Char('b'),
     ];
     let (result, trace) = ll1_parser.parse(test_str);
 

@@ -36,7 +36,7 @@ impl Grammar {
         let mut grammar = Grammar {
             v_non_terminal: HashSet::new(),
             v_terminal: HashSet::new(),
-            s: NonTerminal::S,
+            s: NonTerminal('S'),
             productions: HashMap::new(),
             has_e_rules: false,
         };
@@ -67,7 +67,7 @@ impl Grammar {
 
             // parse the Production alternatives separated by "|" of the right-hand side of the
             // Production
-            for alt_str in rhs.split("|") {
+            for alt_str in rhs.split('|') {
                 if alt_str.trim().is_empty() {
                     return Err(format!("Empty alternative is not allowed. Use an explicit epsilon symbol or char 'e' instead."));
                 }
@@ -148,7 +148,7 @@ impl Grammar {
             .map(|(lhs, _)| format!("Production for {}", lhs))
             .zip(self.productions.values().map(|p| p.to_string()))
             .collect();
-        productions_lines.sort();
+productions_lines.sort();
 
         for (key, value) in productions_lines {
             builder.push_record([key, value]);
@@ -180,27 +180,27 @@ mod tests {
         assert_eq!(
             grammar.v_terminal,
             HashSet::from_iter(vec![
-                Symbol::Terminal(Terminal::AChar),
-                Symbol::Terminal(Terminal::BChar),
-                Symbol::Terminal(Terminal::CChar),
-                Symbol::Terminal(Terminal::DChar),
+                Symbol::Terminal(Terminal::Char('a')),
+                Symbol::Terminal(Terminal::Char('b')),
+                Symbol::Terminal(Terminal::Char('c')),
+                Symbol::Terminal(Terminal::Char('d')),
             ])
         );
 
         assert_eq!(
             grammar.v_non_terminal,
             HashSet::from_iter(vec![
-                Symbol::NonTerminal(NonTerminal::S),
-                Symbol::NonTerminal(NonTerminal::A),
-                Symbol::NonTerminal(NonTerminal::B),
+                Symbol::NonTerminal(NonTerminal('S')),
+                Symbol::NonTerminal(NonTerminal('A')),
+                Symbol::NonTerminal(NonTerminal('B')),
             ])
         );
 
-        assert_eq!(grammar.s, NonTerminal::S);
+        assert_eq!(grammar.s, NonTerminal('S'));
 
         let s_alts = &grammar
             .productions
-            .get(&NonTerminal::S)
+            .get(&NonTerminal('S'))
             .expect("missing production for S")
             .alternatives;
 
@@ -208,10 +208,10 @@ mod tests {
             s_alts,
             &vec![
                 vec![
-                    Symbol::NonTerminal(NonTerminal::A),
-                    Symbol::NonTerminal(NonTerminal::B)
+                    Symbol::NonTerminal(NonTerminal('A')),
+                    Symbol::NonTerminal(NonTerminal('B'))
                 ],
-                vec![Symbol::NonTerminal(NonTerminal::B)]
+                vec![Symbol::NonTerminal(NonTerminal('B'))]
             ]
         );
     }
@@ -235,18 +235,18 @@ mod tests {
         let grammar = Grammar::from_file(&path.to_string_lossy()).unwrap();
         let _ = fs::remove_file(&path);
 
-        assert_eq!(grammar.s, NonTerminal::S);
-        assert!(grammar.productions.contains_key(&NonTerminal::S));
-        assert!(grammar.productions.contains_key(&NonTerminal::A));
-        assert!(grammar.productions.contains_key(&NonTerminal::B));
+        assert_eq!(grammar.s, NonTerminal('S'));
+        assert!(grammar.productions.contains_key(&NonTerminal('S')));
+        assert!(grammar.productions.contains_key(&NonTerminal('A')));
+        assert!(grammar.productions.contains_key(&NonTerminal('B')));
 
         assert_eq!(
             grammar.v_terminal,
             HashSet::from_iter(vec![
-                Symbol::Terminal(Terminal::AChar),
-                Symbol::Terminal(Terminal::BChar),
-                Symbol::Terminal(Terminal::CChar),
-                Symbol::Terminal(Terminal::DChar),
+                Symbol::Terminal(Terminal::Char('a')),
+                Symbol::Terminal(Terminal::Char('b')),
+                Symbol::Terminal(Terminal::Char('c')),
+                Symbol::Terminal(Terminal::Char('d')),
             ])
         );
     }

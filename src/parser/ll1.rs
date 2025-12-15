@@ -203,6 +203,7 @@ impl<'a> LL1Parser<'a> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use crate::model::types::Terminal;
 
     #[test]
     fn ll1_parser_recognizes_grammar_successfully() {
@@ -220,7 +221,7 @@ pub mod tests {
         let parser = LL1Parser::new(&grammar).unwrap();
 
         // test: "ab"
-        let (result, _) = parser.parse(&[Terminal::AChar, Terminal::BChar]);
+        let (result, _) = parser.parse(&[Terminal::Char('a'), Terminal::Char('b')]);
         assert!(matches!(result, ParseResult::Accept));
     }
 }

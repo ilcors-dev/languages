@@ -117,14 +117,14 @@ pub fn to_parsing_table(grammar: &Grammar) -> Option<Table> {
                     let productions: Vec<String> = actions
                         .iter()
                         .filter_map(|action| match action {
-                            ParsingAction::Production(index) => grammar.productions.get(nt).map(
-                                |prod| {
+                            ParsingAction::Production(index) => {
+                                grammar.productions.get(nt).map(|prod| {
                                     prod.alternatives[*index]
                                         .iter()
                                         .map(|s| s.to_string())
                                         .collect::<String>()
-                                },
-                            ),
+                                })
+                            }
                             _ => Some("error".to_string()),
                         })
                         .collect();
@@ -403,8 +403,11 @@ pub fn to_follow_set_table(grammar: &Grammar) -> Table {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::model::{grammar::Grammar, types::{Terminal, NonTerminal}};
     use super::*;
+    use crate::model::{
+        grammar::Grammar,
+        types::{NonTerminal, Terminal},
+    };
     use std::collections::HashSet;
 
     #[test]
@@ -448,11 +451,11 @@ pub mod tests {
         let grammar = Grammar::from_string(template.to_string()).unwrap();
 
         let first_sets = calculate_all_first_sets(&grammar);
-        let (first_set, is_nullable) = first_sets.get(&NonTerminal::S).unwrap();
+        let (first_set, is_nullable) = first_sets.get(&NonTerminal('S')).unwrap();
 
         assert_eq!(
             *first_set,
-            HashSet::from_iter(vec![Terminal::AChar, Terminal::BChar])
+            HashSet::from_iter(vec![Terminal::Char('a'), Terminal::Char('b')])
         );
         assert!(!is_nullable);
     }
@@ -469,7 +472,7 @@ pub mod tests {
         let grammar = Grammar::from_string(template.to_string()).unwrap();
 
         let first_sets = calculate_all_first_sets(&grammar);
-        let result = first_sets.get(&NonTerminal::D);
+        let result = first_sets.get(&NonTerminal('D'));
 
         assert!(result.is_none());
     }
@@ -486,21 +489,21 @@ pub mod tests {
         let grammar = Grammar::from_string(template.to_string()).unwrap();
         let first_sets = calculate_all_first_sets(&grammar);
 
-        let (a_first, a_nullable) = first_sets.get(&NonTerminal::A).expect("FIRST(A) missing");
+        let (a_first, a_nullable) = first_sets.get(&NonTerminal('A')).expect("FIRST(A) missing");
         assert_eq!(
             *a_first,
-            HashSet::from_iter(vec![Terminal::AChar, Terminal::Epsilon])
+            HashSet::from_iter(vec![Terminal::Char('a'), Terminal::Epsilon])
         );
         assert!(*a_nullable);
 
-        let (b_first, b_nullable) = first_sets.get(&NonTerminal::B).expect("FIRST(B) missing");
-        assert_eq!(*b_first, HashSet::from_iter(vec![Terminal::BChar]));
+        let (b_first, b_nullable) = first_sets.get(&NonTerminal('B')).expect("FIRST(B) missing");
+        assert_eq!(*b_first, HashSet::from_iter(vec![Terminal::Char('b')]));
         assert!(!*b_nullable);
 
-        let (c_first, c_nullable) = first_sets.get(&NonTerminal::C).expect("FIRST(C) missing");
+        let (c_first, c_nullable) = first_sets.get(&NonTerminal('C')).expect("FIRST(C) missing");
         assert_eq!(
             *c_first,
-            HashSet::from_iter(vec![Terminal::BChar, Terminal::Epsilon])
+            HashSet::from_iter(vec![Terminal::Char('b'), Terminal::Epsilon])
         );
         assert!(*c_nullable);
     }
@@ -519,23 +522,24 @@ pub mod tests {
         let follow = calculate_all_follow_sets(&grammar, &first_sets);
 
         assert_eq!(
-            follow.get(&NonTerminal::S).cloned().unwrap_or_default(),
+            follow.get(&NonTerminal('S')).cloned().unwrap_or_default(),
             HashSet::from_iter(vec![Terminal::EOF])
         );
 
         assert_eq!(
-            follow.get(&NonTerminal::A).cloned().unwrap_or_default(),
-            HashSet::from_iter(vec![Terminal::BChar, Terminal::EOF])
+            follow.get(&NonTerminal('A')).cloned().unwrap_or_default(),
+            HashSet::from_iter(vec![Terminal::Char('b'), Terminal::EOF])
         );
 
         assert_eq!(
-            follow.get(&NonTerminal::C).cloned().unwrap_or_default(),
+            follow.get(&NonTerminal('C')).cloned().unwrap_or_default(),
             HashSet::from_iter(vec![Terminal::EOF])
         );
 
         assert_eq!(
-            follow.get(&NonTerminal::B).cloned().unwrap_or_default(),
+            follow.get(&NonTerminal('B')).cloned().unwrap_or_default(),
             HashSet::from_iter(vec![Terminal::EOF])
         );
     }
 }
+
