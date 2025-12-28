@@ -282,47 +282,64 @@ impl TableGenerator for LR0Builder<'_> {
 
         Ok(LRParsingTable { actions })
     }
-}
 
-impl Display for LR0Builder<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "LR(0) States:")?;
+    fn to_printable_table(&self) -> Option<tabled::Table> {
+        let table = self.build_parsing_table();
 
-        let mut states_sorted_by_key: Vec<(&usize, &LR0State)> =
-            self.states.iter().collect::<Vec<(&usize, &LR0State)>>();
+        if table.is_err() {
+            return None;
+        }
 
-        states_sorted_by_key.sort_by_key(|(state_idx, _)| *state_idx);
+        let mut builder = tabled::builder::Builder::default();
 
-        for (state_idx, state) in states_sorted_by_key.iter() {
-            writeln!(f, "State {}:", state_idx)?;
+        let mut header = vec!["PARSING TABLE (State / Symbols)".to_string()];
 
-            for item in state.items.iter() {
-                writeln!(f, "  {}", item)?;
+        let mut symbols: Vec<Symbol> = self.grammar.v_terminal.iter().cloned().collect();
+        symbols.push(Symbol::Terminal(crate::model::types::Terminal::EOF));
+        symbols.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+        for symbol in symbols.iter() {
+            header.push(symbol.to_string());
+        }
+
+        builder.push_record(header);
+        let parsing_table = table.unwrap();
+
+        let mut state_indices: Vec<usize> = self.states.keys().cloned().collect();
+        state_indices.sort();
+
+        for state_idx in state_indices.iter() {
+            let mut row = vec![format!("State {}", state_idx)];
+
+            let mut symbols: Vec<Symbol> = self.grammar.v_terminal.iter().cloned().collect();
+            symbols.push(Symbol::Terminal(crate::model::types::Terminal::EOF));
+            symbols.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
+
+            for symbol in symbols.iter() {
+                let actions = parsing_table.actions.get(&(*state_idx, symbol.clone()));
+
+                if let Some(actions) = actions {
+                    let action_str = actions
+                        .iter()
+                        .map(|a| {
+                            if actions.len() > 1 {
+                                format!("⚠️ {}", a)
+                            } else {
+                                format!("{}", a)
+                            }
+                        })
+                        .collect::<Vec<String>>()
+                        .join("\n");
+
+                    row.push(action_str);
+                } else {
+                    row.push("-".to_string());
+                }
             }
 
-            writeln!(f)?;
+            builder.push_record(row);
         }
 
-        writeln!(f, "LR(0) Transitions:")?;
-
-        let mut transitions_sorted: Vec<(&(usize, Symbol), &usize)> = self
-            .transitions
-            .iter()
-            .collect::<Vec<(&(usize, Symbol), &usize)>>();
-
-        transitions_sorted.sort_by_key(|((from_state, symbol), to_state)| {
-            (*from_state, symbol.clone(), *to_state)
-        });
-
-        for ((from_state, symbol), to_state) in transitions_sorted.iter() {
-            writeln!(
-                f,
-                "  From State {} --[{}]--> State {}",
-                from_state, symbol, to_state
-            )?;
-        }
-
-        Ok(())
+        Some(builder.build())
     }
 }
 

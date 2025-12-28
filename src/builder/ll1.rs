@@ -69,7 +69,7 @@ pub fn build_parsing_table(grammar: &Grammar) -> Option<LLParsingTable> {
     Some(table)
 }
 
-pub fn to_parsing_table(grammar: &Grammar) -> Option<Table> {
+pub fn to_printable_table(grammar: &Grammar) -> Option<Table> {
     let table = build_parsing_table(grammar)?;
 
     let mut builder = tabled::builder::Builder::default();

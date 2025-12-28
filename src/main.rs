@@ -1,5 +1,5 @@
 use crate::{
-    builder::lr0::LRBuilder,
+    builder::lr::types::TableGenerator,
     model::{grammar::Grammar, types::Terminal},
     parser::ll1::LL1Parser,
 };
@@ -22,11 +22,15 @@ fn main() {
 
     println!(
         "{}",
-        builder::ll1::to_parsing_table(&grammar).expect("Expected table, nothing found.")
+        builder::ll1::to_printable_table(&grammar).expect("Expected table, nothing found.")
     );
 
-    let mut lr0_builder = builder::lr0::LR0Builder::new(&grammar);
-    lr0_builder.build();
+    let lr0_builder = builder::lr::lr0::LR0Builder::new(&grammar);
 
-    println!("{}", lr0_builder);
+    println!(
+        "{}",
+        lr0_builder
+            .to_printable_table()
+            .expect("Expected table, nothing found.")
+    );
 }
