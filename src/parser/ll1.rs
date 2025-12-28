@@ -9,12 +9,12 @@ use crate::{
         grammar::Grammar,
         types::{Symbol, Terminal},
     },
-    parser::types::{ParseResult, ParseStep, ParsingTable},
+    parser::types::{LLParsingTable, ParseResult, ParseStep},
 };
 
 pub struct LL1Parser<'a> {
     grammar: &'a Grammar,
-    parsing_table: ParsingTable,
+    parsing_table: LLParsingTable,
 }
 
 impl<'a> LL1Parser<'a> {

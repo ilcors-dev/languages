@@ -7,7 +7,7 @@ use crate::{
         grammar::Grammar,
         types::{NonTerminal, Symbol, Terminal},
     },
-    parser::types::{ParsingAction, ParsingTable},
+    parser::types::{LLParsingTable, ParsingAction},
 };
 
 /// By definition, a grammar is LL(1) if:
@@ -42,8 +42,8 @@ pub fn is_ll1(grammar: &Grammar) -> bool {
     true
 }
 
-pub fn build_parsing_table(grammar: &Grammar) -> Option<ParsingTable> {
-    let mut table: ParsingTable = HashMap::new();
+pub fn build_parsing_table(grammar: &Grammar) -> Option<LLParsingTable> {
+    let mut table: LLParsingTable = HashMap::new();
     let all_first_sets = calculate_all_first_sets(grammar);
     let all_follow_sets = calculate_all_follow_sets(grammar, &all_first_sets);
 

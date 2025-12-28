@@ -14,7 +14,42 @@ pub enum ParsingAction {
     Error, // empty cell = parsing error
 }
 
-pub type ParsingTable = HashMap<(NonTerminal, Terminal), Vec<ParsingAction>>;
+pub type LLParsingTable = HashMap<(NonTerminal, Terminal), Vec<ParsingAction>>;
+
+#[derive(Debug, Clone)]
+pub struct LRParsingTable {
+    pub actions: HashMap<(usize, Symbol), Vec<LRAction>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum LRAction {
+    /// Go to state at index N
+    Shift(usize),
+
+    /// Reduce using production at index N
+    /// (LHS, RHS, production_index)
+    Reduce(NonTerminal, Vec<Symbol>, usize),
+
+    Accept,
+}
+
+impl Display for LRAction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Shift(n) => write!(f, "s{}", n),
+            Self::Reduce(lhs, rhs, _) => write!(
+                f,
+                "r({} -> {})",
+                lhs,
+                rhs.iter()
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>()
+                    .join("")
+            ),
+            Self::Accept => write!(f, "acc"),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum ParseResult {

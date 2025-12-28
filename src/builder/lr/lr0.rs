@@ -3,18 +3,14 @@ use std::{
     fmt::Display,
 };
 
-use crate::model::{
-    grammar::Grammar,
-    types::{NonTerminal, Symbol},
+use crate::{
+    builder::lr::types::{LRItem, TableGenerator},
+    model::{
+        grammar::Grammar,
+        types::{NonTerminal, Symbol},
+    },
+    parser::types::{LRAction, LRParsingTable, ParsingAction},
 };
-
-trait LRItem {
-    /// Advances the cursor (dot) position by one
-    fn advance_cursor(&self) -> Self;
-
-    /// Peeks the symbol after the cursor (dot) position
-    fn symbol_after_cursor(&self) -> Option<&Symbol>;
-}
 
 #[derive(Debug, Clone)]
 struct LR0State {
@@ -71,13 +67,14 @@ impl LRItem for LR0Item {
     }
 }
 
-pub struct LR0Builder {
+pub struct LR0Builder<'a> {
+    grammar: &'a Grammar,
     states: HashMap<usize, LR0State>,
     transitions: HashMap<(usize, Symbol), usize>,
 }
 
-impl LR0Builder {
-    pub fn new(grammar: &Grammar) -> LR0Builder {
+impl LR0Builder<'_> {
+    pub fn new(grammar: &Grammar) -> LR0Builder<'_> {
         let mut states = HashMap::new();
         let mut transitions = HashMap::new();
 
@@ -101,6 +98,10 @@ impl LR0Builder {
             };
 
             for symbol_after_cursor in items.iter().filter_map(|item| item.symbol_after_cursor()) {
+                if *symbol_after_cursor == Symbol::Terminal(crate::model::types::Terminal::EOF) {
+                    continue;
+                }
+
                 let new_items = Self::goto(grammar, items.clone(), symbol_after_cursor);
 
                 if new_items.is_empty() {
@@ -126,6 +127,7 @@ impl LR0Builder {
         }
 
         LR0Builder {
+            grammar,
             states,
             transitions,
         }
@@ -211,7 +213,78 @@ impl LR0Builder {
     }
 }
 
-impl Display for LR0Builder {
+impl TableGenerator for LR0Builder<'_> {
+    fn build_parsing_table(&self) -> Result<LRParsingTable, String> {
+        let mut actions: HashMap<(usize, Symbol), Vec<LRAction>> = HashMap::new();
+
+        let mut terminals: HashSet<Symbol> = self.grammar.v_terminal.clone();
+        terminals.insert(Symbol::Terminal(crate::model::types::Terminal::EOF));
+        terminals.remove(&Symbol::Terminal(crate::model::types::Terminal::Epsilon));
+
+        for ((state_idx, symbol), to_state_idx) in self.transitions.iter() {
+            actions
+                .entry((*state_idx, symbol.clone()))
+                .or_insert_with(Vec::new)
+                .push(LRAction::Shift(*to_state_idx));
+        }
+
+        for (state_idx, state) in self.states.iter() {
+            for item in state.items.iter() {
+                if item.symbol_after_cursor().is_some() {
+                    continue;
+                }
+
+                // reduction or accept?
+                if item.lhs == NonTerminal('Z')
+                    && item.production == vec![Symbol::NonTerminal(self.grammar.s)]
+                {
+                    // accept
+                    actions
+                        .entry((
+                            *state_idx,
+                            Symbol::Terminal(crate::model::types::Terminal::EOF),
+                        ))
+                        .or_insert_with(Vec::new)
+                        .push(LRAction::Accept);
+                } else {
+                    // reduction
+                    let production = self.grammar.productions.get(&item.lhs).ok_or_else(|| {
+                        format!(
+                            "Production for non-terminal '{}' not found in grammar.",
+                            item.lhs
+                        )
+                    })?;
+
+                    let production_index = production
+                        .alternatives
+                        .iter()
+                        .position(|alt| *alt == item.production)
+                        .ok_or_else(|| {
+                            format!(
+                                "Alternative '{:?}' for production '{}' not found in grammar.",
+                                item.production, item.lhs
+                            )
+                        })?;
+
+                    for terminal in &terminals {
+                        actions
+                            .entry((*state_idx, terminal.clone()))
+                            .or_insert_with(Vec::new)
+                            .push(LRAction::Reduce(
+                                item.lhs,
+                                item.production.clone(),
+                                production_index,
+                            ));
+                    }
+                }
+            }
+        }
+
+        Ok(LRParsingTable { actions })
+    }
+}
+
+impl Display for LR0Builder<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "LR(0) States:")?;
 
@@ -554,5 +627,117 @@ mod tests {
         assert_eq!(lr0.states.len(), 6);
         assert_eq!(lr0.transitions.len(), 5);
     }
-}
 
+    #[test]
+    fn lr0_builder_augments_grammar_with_start_production() {
+        // given
+        let template = "
+            S->AB
+            A->a
+            B->b
+        ";
+
+        let grammar = Grammar::from_string(template.to_string()).unwrap();
+
+        // when
+        let lr0 = LR0Builder::new(&grammar);
+
+        // then
+        let start_state = lr0.states.get(&0).unwrap();
+
+        let expected_start_item = LR0Item {
+            lhs: NonTerminal('Z'),
+            production: vec![Symbol::NonTerminal(NonTerminal('S'))],
+            cursor_pos: 0,
+        };
+
+        assert!(start_state.items.contains(&expected_start_item));
+    }
+
+    #[test]
+    fn lr0_builder_ignores_eof_in_goto_transitions() {
+        // given
+        let template = "
+            S->AB
+            A->a
+            B->b
+        ";
+
+        let grammar = Grammar::from_string(template.to_string()).unwrap();
+
+        // when
+        let lr0 = LR0Builder::new(&grammar);
+
+        // then
+        for ((_, symbol), _) in lr0.transitions.iter() {
+            assert_ne!(*symbol, Symbol::Terminal(Terminal::EOF));
+        }
+    }
+
+    #[test]
+    fn lr0_build_parsing_table_contains_reductions_for_all_terminals() {
+        // given
+        let template = "
+            S->a
+        ";
+        let grammar = Grammar::from_string(template.to_string()).unwrap();
+        let lr0 = LR0Builder::new(&grammar);
+
+        // when
+        let table = lr0.build_parsing_table().unwrap();
+
+        // then
+        // State with S -> a . should have reduction for all terminals
+        let reduction_state_idx = lr0
+            .states
+            .iter()
+            .find(|(_, state)| {
+                state.items.contains(&LR0Item {
+                    lhs: NonTerminal('S'),
+                    production: vec![Symbol::Terminal(Terminal::Char('a'))],
+                    cursor_pos: 1,
+                })
+            })
+            .map(|(idx, _)| *idx)
+            .unwrap();
+
+        let actions_for_eof = table
+            .actions
+            .get(&(reduction_state_idx, Symbol::Terminal(Terminal::EOF)))
+            .unwrap();
+
+        assert!(actions_for_eof
+            .iter()
+            .any(|a| matches!(a, LRAction::Reduce(_, _, _))));
+
+        let actions_for_a = table
+            .actions
+            .get(&(reduction_state_idx, Symbol::Terminal(Terminal::Char('a'))))
+            .unwrap();
+
+        assert!(actions_for_a
+            .iter()
+            .any(|a| matches!(a, LRAction::Reduce(_, _, _))));
+
+        // Start state (Z -> S .) should have Accept for EOF
+        let accept_state_idx = lr0
+            .states
+            .iter()
+            .find(|(_, state)| {
+                state.items.contains(&LR0Item {
+                    lhs: NonTerminal('Z'),
+                    production: vec![Symbol::NonTerminal(NonTerminal('S'))],
+                    cursor_pos: 1,
+                })
+            })
+            .map(|(idx, _)| *idx)
+            .unwrap();
+
+        let accept_actions = table
+            .actions
+            .get(&(accept_state_idx, Symbol::Terminal(Terminal::EOF)))
+            .unwrap();
+
+        assert!(accept_actions.iter().any(|a| matches!(a, LRAction::Accept)));
+    }
+}
