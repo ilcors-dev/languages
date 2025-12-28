@@ -71,14 +71,13 @@ impl LRItem for LR0Item {
     }
 }
 
-pub struct LR0Builder<'a> {
-    grammar: &'a Grammar,
+pub struct LR0Builder {
     states: HashMap<usize, LR0State>,
     transitions: HashMap<(usize, Symbol), usize>,
 }
 
-impl LR0Builder<'_> {
-    pub fn new<'a>(grammar: &'a Grammar) -> LR0Builder<'a> {
+impl LR0Builder {
+    pub fn new(grammar: &Grammar) -> LR0Builder {
         let mut states = HashMap::new();
         let mut transitions = HashMap::new();
 
@@ -127,7 +126,6 @@ impl LR0Builder<'_> {
         }
 
         LR0Builder {
-            grammar,
             states,
             transitions,
         }
@@ -213,7 +211,7 @@ impl LR0Builder<'_> {
     }
 }
 
-impl Display for LR0Builder<'_> {
+impl Display for LR0Builder {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "LR(0) States:")?;
 
@@ -548,12 +546,6 @@ mod tests {
         ";
 
         let grammar = Grammar::from_string(template.to_string()).unwrap();
-
-        let lr0_builder = LR0Builder {
-            grammar: &grammar,
-            states: HashMap::new(),
-            transitions: HashMap::new(),
-        };
 
         // when
         let lr0 = LR0Builder::new(&grammar);
