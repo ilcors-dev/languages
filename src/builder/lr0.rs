@@ -10,41 +10,10 @@ use crate::model::{
 
 trait LRItem {
     /// Advances the cursor (dot) position by one
-    fn advance_cursor(&mut self);
+    fn advance_cursor(&self) -> Self;
 
+    /// Peeks the symbol after the cursor (dot) position
     fn symbol_after_cursor(&self) -> Option<&Symbol>;
-}
-
-pub trait LRBuilder {
-    /// Builds the LR parsing automaton (states and transitions)
-    fn build(&mut self) -> Result<(), String>;
-
-    ///
-    /// For example:
-    /// S -> AB
-    /// A -> a | e
-    /// B -> b
-    ///
-    /// CLOSURE(S -> • AB) will return the set of items
-    /// S -> • AB
-    /// A -> • a
-    /// A -> • e
-    fn closure(&self, item: LR0Item) -> HashSet<LR0Item>;
-
-    /// The GOTO function for LR parsers computes the set of items reachable from a given set of
-    /// items
-    /// For example:
-    /// S -> AB
-    /// A -> a | e
-    /// B -> b
-    ///
-    /// Given the current state
-    /// S -> A • B
-    ///
-    /// GOTO(I, B) will return the set of items
-    /// S -> A B •
-    /// B -> • b
-    fn goto(&self, items: HashSet<LR0Item>, symbol: &Symbol) -> HashSet<LR0Item>;
 }
 
 #[derive(Debug, Clone)]
@@ -83,10 +52,14 @@ impl Display for LR0Item {
 }
 
 impl LRItem for LR0Item {
-    fn advance_cursor(&mut self) {
-        if self.cursor_pos < self.production.len() {
-            self.cursor_pos += 1;
+    fn advance_cursor(&self) -> LR0Item {
+        let mut new_item = self.clone();
+
+        if new_item.cursor_pos < new_item.production.len() {
+            new_item.cursor_pos += 1;
         }
+
+        new_item
     }
 
     fn symbol_after_cursor(&self) -> Option<&Symbol> {
@@ -106,75 +79,81 @@ pub struct LR0Builder<'a> {
 
 impl LR0Builder<'_> {
     pub fn new<'a>(grammar: &'a Grammar) -> LR0Builder<'a> {
-        LR0Builder {
-            grammar,
-            states: HashMap::new(),
-            transitions: HashMap::new(),
-        }
-    }
-}
+        let mut states = HashMap::new();
+        let mut transitions = HashMap::new();
 
-impl<'a> LRBuilder for LR0Builder<'a> {
-    fn build(&mut self) -> Result<(), String> {
         let start = LR0Item {
             lhs: NonTerminal('Z'),
-            production: vec![Symbol::NonTerminal(self.grammar.s)],
+            production: vec![Symbol::NonTerminal(grammar.s)],
             cursor_pos: 0,
         };
 
-        let items = self.closure(start);
+        let items = Self::closure(grammar, start);
 
-        self.states.insert(0, LR0State { items });
+        states.insert(0, LR0State { items });
 
-        let mut worklist = self.states.keys().cloned().collect::<Vec<usize>>();
+        let mut worklist: Vec<usize> = states.keys().cloned().collect();
 
         while let Some(state_idx) = worklist.pop() {
-            let current_state = self.states.get(&state_idx).unwrap().clone();
+            let items = if let Some(state) = states.get(&state_idx) {
+                state.items.clone()
+            } else {
+                continue;
+            };
 
-            for symbol_after_cursor in current_state
-                .items
-                .iter()
-                .filter_map(|item| item.symbol_after_cursor())
-            {
-                let new_items = self.goto(current_state.items.clone(), symbol_after_cursor);
+            for symbol_after_cursor in items.iter().filter_map(|item| item.symbol_after_cursor()) {
+                let new_items = Self::goto(grammar, items.clone(), symbol_after_cursor);
 
                 if new_items.is_empty() {
                     continue;
                 }
 
-                let new_state_idx = if let Some((idx, _)) = self
-                    .states
-                    .iter()
-                    .find(|(_, state)| state.items == new_items)
+                let new_state_idx = if let Some((idx, _)) =
+                    states.iter().find(|(_, state)| state.items == new_items)
                 {
                     *idx
                 } else {
-                    let new_idx = self.states.len();
+                    let new_idx = states.len();
 
-                    self.states.insert(new_idx, LR0State { items: new_items });
+                    states.insert(new_idx, LR0State { items: new_items });
 
                     worklist.push(new_idx);
 
                     new_idx
                 };
 
-                self.transitions
-                    .insert((state_idx, *symbol_after_cursor), new_state_idx);
+                transitions.insert((state_idx, *symbol_after_cursor), new_state_idx);
             }
         }
 
-        Ok(())
+        LR0Builder {
+            grammar,
+            states,
+            transitions,
+        }
     }
 
-    fn goto(&self, items: HashSet<LR0Item>, symbol: &Symbol) -> HashSet<LR0Item> {
+    /// The GOTO function for LR parsers computes the set of items reachable from a given set of
+    /// items
+    /// For example:
+    /// S -> AB
+    /// A -> a | e
+    /// B -> b
+    ///
+    /// Given the current state
+    /// S -> A • B
+    ///
+    /// GOTO(I, B) will return the set of items
+    /// S -> A B •
+    /// B -> • b
+    fn goto(grammar: &Grammar, items: HashSet<LR0Item>, symbol: &Symbol) -> HashSet<LR0Item> {
         let mut goto_set = HashSet::new();
 
         for item in items.iter() {
             if item.symbol_after_cursor() == Some(&symbol) {
-                let mut advanced_item = item.clone();
-                advanced_item.advance_cursor();
+                let advanced_item = item.advance_cursor();
 
-                for closure_item in self.closure(advanced_item).into_iter() {
+                for closure_item in Self::closure(grammar, advanced_item).into_iter() {
                     goto_set.insert(closure_item);
                 }
             }
@@ -183,7 +162,19 @@ impl<'a> LRBuilder for LR0Builder<'a> {
         goto_set
     }
 
-    fn closure(&self, item: LR0Item) -> HashSet<LR0Item> {
+    /// The CLOSURE function for LR parsers computes the production rules reachable from the item
+    /// provided given its cursor position.
+    ///
+    /// For example:
+    /// S -> AB
+    /// A -> a | e
+    /// B -> b
+    ///
+    /// CLOSURE(S -> • AB) will return the set of items
+    /// S -> • AB
+    /// A -> • a
+    /// A -> • e
+    fn closure(grammar: &Grammar, item: LR0Item) -> HashSet<LR0Item> {
         let mut closure_set = HashSet::new();
         closure_set.insert(item);
 
@@ -196,7 +187,7 @@ impl<'a> LRBuilder for LR0Builder<'a> {
 
             for item in curr_items.iter() {
                 if let Some(Symbol::NonTerminal(nt)) = item.symbol_after_cursor() {
-                    let productions = self.grammar.productions.get(nt);
+                    let productions = grammar.productions.get(nt);
 
                     if productions.is_none() {
                         continue;
@@ -259,7 +250,7 @@ mod tests {
     #[test]
     fn lr0_item_should_advance_cursor_when_called() {
         // given
-        let mut item = LR0Item {
+        let item = LR0Item {
             lhs: NonTerminal('S'),
             production: vec![
                 Symbol::NonTerminal(NonTerminal('A')),
@@ -269,15 +260,16 @@ mod tests {
         };
 
         // when / then
-        item.advance_cursor();
         assert_eq!(
-            item.symbol_after_cursor(),
+            item.advance_cursor().symbol_after_cursor(),
             Some(&Symbol::Terminal(Terminal::Char('a')))
         );
 
         // when / then
-        item.advance_cursor();
-        assert_eq!(item.symbol_after_cursor(), None);
+        assert_eq!(
+            item.advance_cursor().advance_cursor().symbol_after_cursor(),
+            None
+        );
     }
 
     #[test]
@@ -383,12 +375,6 @@ mod tests {
 
         let grammar = Grammar::from_string(template.to_string()).unwrap();
 
-        let lr0_builder = LR0Builder {
-            grammar: &grammar,
-            states: HashMap::new(),
-            transitions: HashMap::new(),
-        };
-
         let start_item = LR0Item {
             lhs: NonTerminal('S'),
             production: vec![
@@ -399,7 +385,7 @@ mod tests {
         };
 
         // when
-        let closure_set = lr0_builder.closure(start_item);
+        let closure_set = LR0Builder::closure(&grammar, start_item);
 
         // then
         let expected_items: HashSet<LR0Item> = HashSet::from_iter(vec![
@@ -436,12 +422,6 @@ mod tests {
 
         let grammar = Grammar::from_string(template.to_string()).unwrap();
 
-        let lr0_builder = LR0Builder {
-            grammar: &grammar,
-            states: HashMap::new(),
-            transitions: HashMap::new(),
-        };
-
         let start_item = LR0Item {
             lhs: NonTerminal('S'),
             production: vec![
@@ -452,7 +432,7 @@ mod tests {
         };
 
         // when
-        let closure_set = lr0_builder.closure(start_item.clone());
+        let closure_set = LR0Builder::closure(&grammar, start_item.clone());
 
         // then
         let expected_items: HashSet<LR0Item> = HashSet::from_iter(vec![start_item]);
@@ -471,12 +451,6 @@ mod tests {
 
         let grammar = Grammar::from_string(template.to_string()).unwrap();
 
-        let lr0_builder = LR0Builder {
-            grammar: &grammar,
-            states: HashMap::new(),
-            transitions: HashMap::new(),
-        };
-
         let start_item = LR0Item {
             lhs: NonTerminal('S'),
             production: vec![
@@ -486,10 +460,14 @@ mod tests {
             cursor_pos: 0,
         };
 
-        let closure_set = lr0_builder.closure(start_item);
+        let closure_set = LR0Builder::closure(&grammar, start_item);
 
         // when
-        let goto_set = lr0_builder.goto(closure_set, &Symbol::NonTerminal(NonTerminal('A')));
+        let goto_set = LR0Builder::goto(
+            &grammar,
+            closure_set,
+            &Symbol::NonTerminal(NonTerminal('A')),
+        );
 
         // then
         let expected_items: HashSet<LR0Item> = HashSet::from_iter(vec![
@@ -522,12 +500,6 @@ mod tests {
 
         let grammar = Grammar::from_string(template.to_string()).unwrap();
 
-        let lr0_builder = LR0Builder {
-            grammar: &grammar,
-            states: HashMap::new(),
-            transitions: HashMap::new(),
-        };
-
         let start_item = LR0Item {
             lhs: NonTerminal('S'),
             production: vec![
@@ -537,10 +509,14 @@ mod tests {
             cursor_pos: 2,
         };
 
-        let closure_set = lr0_builder.closure(start_item);
+        let closure_set = LR0Builder::closure(&grammar, start_item);
 
         // when
-        let goto_set = lr0_builder.goto(closure_set, &Symbol::Terminal(Terminal::Char('a')));
+        let goto_set = LR0Builder::goto(
+            &grammar,
+            closure_set,
+            &Symbol::Terminal(Terminal::Char('a')),
+        );
 
         // then
         let expected_items: HashSet<LR0Item> = HashSet::new();
@@ -559,17 +535,18 @@ mod tests {
 
         let grammar = Grammar::from_string(template.to_string()).unwrap();
 
-        let mut lr0_builder = LR0Builder {
+        let lr0_builder = LR0Builder {
             grammar: &grammar,
             states: HashMap::new(),
             transitions: HashMap::new(),
         };
 
         // when
-        lr0_builder.build().unwrap();
+        let lr0 = LR0Builder::new(&grammar);
 
         // then
-        assert_eq!(lr0_builder.states.len(), 6);
-        assert_eq!(lr0_builder.transitions.len(), 5);
+        assert_eq!(lr0.states.len(), 6);
+        assert_eq!(lr0.transitions.len(), 5);
     }
 }
+
