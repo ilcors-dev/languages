@@ -148,7 +148,7 @@ impl Grammar {
             .map(|(lhs, _)| format!("Production for {}", lhs))
             .zip(self.productions.values().map(|p| p.to_string()))
             .collect();
-productions_lines.sort();
+        productions_lines.sort();
 
         for (key, value) in productions_lines {
             builder.push_record([key, value]);

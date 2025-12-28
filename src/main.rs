@@ -1,9 +1,10 @@
 use crate::{
+    builder::lr0::LRBuilder,
     model::{grammar::Grammar, types::Terminal},
     parser::ll1::LL1Parser,
 };
 
-mod analyzer;
+mod builder;
 mod model;
 mod parser;
 
@@ -15,26 +16,17 @@ fn main() {
 
     println!("{}", grammar.to_vertical_table());
 
-    println!("{}", analyzer::ll1::to_first_set_table(&grammar));
+    println!("{}", builder::ll1::to_first_set_table(&grammar));
 
-    println!("{}", analyzer::ll1::to_follow_set_table(&grammar));
+    println!("{}", builder::ll1::to_follow_set_table(&grammar));
 
     println!(
         "{}",
-        analyzer::ll1::to_parsing_table(&grammar).expect("Expected table, nothing found.")
+        builder::ll1::to_parsing_table(&grammar).expect("Expected table, nothing found.")
     );
 
-    let ll1_parser = LL1Parser::new(&grammar).unwrap();
+    let mut lr0_builder = builder::lr0::LR0Builder::new(&grammar);
+    lr0_builder.build();
 
-    let test_str = &[
-        Terminal::Char('a'),
-        Terminal::Char('b'),
-        Terminal::Char('b'),
-        Terminal::Char('b'),
-    ];
-    let (result, trace) = ll1_parser.parse(test_str);
-
-    println!("String {:?} parseable: {}", test_str, result);
-    println!("{}", LL1Parser::trace_as_table(&trace));
+    println!("{}", lr0_builder);
 }
-

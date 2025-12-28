@@ -66,7 +66,7 @@ impl TryFrom<Symbol> for NonTerminal {
     }
 }
 
-#[derive(Debug, Eq, Hash, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, Hash, PartialEq, Copy, Clone, PartialOrd, Ord)]
 pub enum Symbol {
     Terminal(Terminal),
     NonTerminal(NonTerminal),
@@ -90,8 +90,7 @@ impl Symbol {
             }
         } else if c.is_ascii_digit() {
             Ok(Symbol::Terminal(Terminal::Char(c)))
-        }
-        else {
+        } else {
             match c {
                 'ε' => Ok(Symbol::Terminal(Terminal::Epsilon)),
                 '$' => Ok(Symbol::Terminal(Terminal::EOF)),
@@ -116,7 +115,7 @@ impl Display for Symbol {
 
 pub type Alternative = Vec<Symbol>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Production {
     pub lhs: NonTerminal,
     pub alternatives: Vec<Alternative>,
@@ -148,3 +147,4 @@ impl Display for Production {
         write!(f, "{} -> {}", self.lhs, rhs)
     }
 }
+
