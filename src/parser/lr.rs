@@ -1,8 +1,10 @@
 use std::collections::VecDeque;
 
+use tabled::Table;
+
 use crate::{
     model::types::{Symbol, Terminal},
-    parser::types::{LRAction, LRParsingTable, ParseResult, ParseStep},
+    parser::types::{LRAction, LRParsingTable, ParseResult, ParseStep, TraceRow},
 };
 
 pub struct LRParser {
@@ -18,7 +20,7 @@ impl LRParser {
         }
     }
 
-    pub fn parse(&mut self, input: &[Terminal]) -> (ParseResult, Vec<ParseStep>) {
+    pub fn parse(&mut self, input: &Vec<Terminal>) -> (ParseResult, Vec<ParseStep>) {
         let mut trace: Vec<ParseStep> = vec![];
 
         let mut queue: VecDeque<Terminal> = input.iter().copied().collect();
@@ -162,6 +164,27 @@ impl LRParser {
                 }
             }
         }
+    }
+
+    pub fn trace_as_table(&self, trace: &[ParseStep]) -> Table {
+        let rows: Vec<TraceRow> = trace
+            .iter()
+            .enumerate()
+            .map(|(i, step)| {
+                let stack_str = step.stack.join(" ");
+
+                let input_str = step.input.iter().map(|s| s.to_string()).collect::<String>();
+
+                TraceRow {
+                    step: i + 1,
+                    stack: stack_str,
+                    input: input_str,
+                    action: step.action.clone(),
+                }
+            })
+            .collect();
+
+        Table::new(rows)
     }
 }
 

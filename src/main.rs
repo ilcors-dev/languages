@@ -1,5 +1,6 @@
 use crate::builder::types::TableGenerator;
 use crate::model::grammar::Grammar;
+use crate::parser::lr::LRParser;
 
 mod builder;
 mod model;
@@ -30,4 +31,20 @@ fn main() {
             .to_printable_table()
             .expect("Expected table, nothing found.")
     );
+
+    let mut lr_parser = LRParser::new(
+        lr0_builder
+            .build_parsing_table()
+            .expect("Failed to build LR Parsing Table."),
+    );
+
+    let input = "abbabb"
+        .chars()
+        .map(|c| crate::model::types::Terminal::Char(c))
+        .collect::<Vec<crate::model::types::Terminal>>();
+
+    let (result, trace) = lr_parser.parse(&input);
+
+    println!("{:?}", result);
+    println!("{}", lr_parser.trace_as_table(&trace));
 }
