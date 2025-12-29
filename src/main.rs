@@ -1,8 +1,5 @@
-use crate::{
-    builder::lr::types::TableGenerator,
-    model::{grammar::Grammar, types::Terminal},
-    parser::ll1::LL1Parser,
-};
+use crate::builder::types::TableGenerator;
+use crate::model::grammar::Grammar;
 
 mod builder;
 mod model;

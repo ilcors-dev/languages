@@ -1,15 +1,16 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fmt::Display,
-};
+use crate::builder::types::TableGenerator;
 
 use crate::{
-    builder::lr::types::{LRItem, TableGenerator},
+    builder::lr::types::LRItem,
     model::{
         grammar::Grammar,
         types::{NonTerminal, Symbol},
     },
-    parser::types::{LRAction, LRParsingTable, ParsingAction},
+    parser::types::{LRAction, LRParsingTable},
+};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt::Display,
 };
 
 #[derive(Debug, Clone)]
@@ -213,7 +214,7 @@ impl LR0Builder<'_> {
     }
 }
 
-impl TableGenerator for LR0Builder<'_> {
+impl TableGenerator<LRParsingTable> for LR0Builder<'_> {
     fn build_parsing_table(&self) -> Result<LRParsingTable, String> {
         let mut actions: HashMap<(usize, Symbol), Vec<LRAction>> = HashMap::new();
 
@@ -295,6 +296,7 @@ impl TableGenerator for LR0Builder<'_> {
         let mut header = vec!["PARSING TABLE (State / Symbols)".to_string()];
 
         let mut symbols: Vec<Symbol> = self.grammar.v_terminal.iter().cloned().collect();
+
         symbols.push(Symbol::Terminal(crate::model::types::Terminal::EOF));
         symbols.sort_by(|a, b| a.to_string().cmp(&b.to_string()));
         for symbol in symbols.iter() {

@@ -1,13 +1,4 @@
-use tabled::Table;
-
-use crate::{model::types::Symbol, parser::types::LRParsingTable};
-
-pub trait TableGenerator {
-    /// Converts the internal automaton into a standard LR Parsing Table
-    fn build_parsing_table(&self) -> Result<LRParsingTable, String>;
-
-    fn to_printable_table(&self) -> Option<Table>;
-}
+use crate::model::types::Symbol;
 
 pub trait LRItem {
     /// Advances the cursor (dot) position by one
