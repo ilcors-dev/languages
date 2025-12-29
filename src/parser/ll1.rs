@@ -44,8 +44,8 @@ impl<'a> LL1Parser<'a> {
     /// Keeps track of the steps done returning the "trace" to the caller.
     pub fn parse(&self, input: &[Terminal]) -> (ParseResult, Vec<ParseStep>) {
         let mut stack = vec![
-            Symbol::Terminal(Terminal::EOF),
-            Symbol::NonTerminal(self.grammar.s),
+            Symbol::Terminal(Terminal::EOF).to_string(),
+            Symbol::NonTerminal(self.grammar.s).to_string(),
         ];
 
         let mut queue: VecDeque<Terminal> = input.iter().copied().collect();
@@ -63,7 +63,7 @@ impl<'a> LL1Parser<'a> {
 
             // get the top of the stack
             let top = match stack.last() {
-                Some(s) => *s,
+                Some(s) => Symbol::from_str(s).expect("Invalid symbol in stack"),
                 None => {
                     tracee.last_mut().unwrap().action = "Empty stack.".to_string();
                     return (ParseResult::Reject("Empty stack.".to_string()), tracee);
@@ -133,7 +133,7 @@ impl<'a> LL1Parser<'a> {
                                         continue;
                                     }
 
-                                    stack.push(*symbol);
+                                    stack.push(symbol.to_string());
                                 }
                             }
                             _ => {}

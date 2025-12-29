@@ -68,7 +68,7 @@ impl Display for ParseResult {
 
 #[derive(Debug, Clone)]
 pub struct ParseStep {
-    pub stack: Vec<Symbol>,
+    pub stack: Vec<String>,
     pub input: VecDeque<Terminal>,
     pub action: String,
 }
