@@ -14,9 +14,9 @@ fn main() {
 
     println!("{}", grammar.to_vertical_table());
 
-    println!("{}", builder::ll1::to_first_set_table(&grammar));
+    println!("{}", builder::common::to_first_set_table(&grammar));
 
-    println!("{}", builder::ll1::to_follow_set_table(&grammar));
+    println!("{}", builder::common::to_follow_set_table(&grammar));
 
     println!(
         "{}",
