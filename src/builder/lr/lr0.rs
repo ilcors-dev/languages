@@ -14,19 +14,19 @@ use std::{
 };
 
 #[derive(Debug, Clone)]
-struct LR0State {
-    items: HashSet<LR0Item>,
+pub struct LR0State {
+    pub items: HashSet<LR0Item>,
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Ord, Eq, Hash)]
-struct LR0Item {
-    lhs: NonTerminal,
+pub struct LR0Item {
+    pub lhs: NonTerminal,
 
     /// Production associated with the LR(0) item
-    production: Vec<Symbol>,
+    pub production: Vec<Symbol>,
 
     /// Position of the cursor (dot) in the production
-    cursor_pos: usize,
+    pub cursor_pos: usize,
 }
 
 impl Display for LR0Item {
@@ -132,6 +132,18 @@ impl LR0Builder<'_> {
             states,
             transitions,
         }
+    }
+
+    pub fn grammar(&self) -> &Grammar {
+        self.grammar
+    }
+
+    pub fn states(&self) -> &HashMap<usize, LR0State> {
+        &self.states
+    }
+
+    pub fn transitions(&self) -> &HashMap<(usize, Symbol), usize> {
+        &self.transitions
     }
 
     /// The GOTO function for LR parsers computes the set of items reachable from a given set of
