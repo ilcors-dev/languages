@@ -147,4 +147,3 @@ impl Display for Production {
         write!(f, "{} -> {}", self.lhs, rhs)
     }
 }
-

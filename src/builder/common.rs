@@ -7,10 +7,11 @@ use crate::model::{
     types::{NonTerminal, Symbol, Terminal},
 };
 
-pub fn calculate_all_first_sets(
-    grammar: &Grammar,
-) -> HashMap<NonTerminal, (HashSet<Terminal>, bool)> {
-    let mut first_sets: HashMap<NonTerminal, (HashSet<Terminal>, bool)> = HashMap::new();
+pub type FirstSet = (HashSet<Terminal>, bool);
+pub type FirstSetTable = HashMap<NonTerminal, FirstSet>;
+
+pub fn calculate_all_first_sets(grammar: &Grammar) -> FirstSetTable {
+    let mut first_sets: FirstSetTable = HashMap::new();
 
     for nt in &grammar.v_non_terminal {
         first_sets.insert(
@@ -70,8 +71,8 @@ pub fn calculate_all_first_sets(
 
 pub fn calculate_first_of_sequence(
     sequence: &[Symbol],
-    current_first_sets: &HashMap<NonTerminal, (HashSet<Terminal>, bool)>,
-) -> (HashSet<Terminal>, bool) {
+    current_first_sets: &FirstSetTable,
+) -> FirstSet {
     let mut terminals: HashSet<Terminal> = HashSet::new();
     let mut is_sequence_nullable = true;
 
@@ -108,7 +109,7 @@ pub fn calculate_first_of_sequence(
 
 pub fn calculate_all_follow_sets(
     grammar: &Grammar,
-    all_first_sets: &HashMap<NonTerminal, (HashSet<Terminal>, bool)>,
+    all_first_sets: &FirstSetTable,
 ) -> HashMap<NonTerminal, HashSet<Terminal>> {
     let mut follow_sets: HashMap<NonTerminal, HashSet<Terminal>> = HashMap::new();
 
